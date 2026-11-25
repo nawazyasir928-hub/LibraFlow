@@ -1,0 +1,26 @@
+LIBRAFLOW PREMIUM BACKEND UPDATE
+
+Included updates:
+- Secure admin-only create/update/delete book routes; public catalogue remains readable.
+- Book catalogue search by title, author, ISBN and category, plus category/author/availability filters, sorting and pagination.
+- Notification API: GET /api/notifications, PATCH /api/notifications/:id/read, POST /api/notifications (admin), DELETE /api/notifications/:id (admin).
+- Admin email API: POST /api/notifications/email with { "to": "...", "subject": "...", "message": "..." }.
+- Admin reports API: GET /api/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD.
+- Admin backup API: GET /api/backup/export and POST /api/backup/restore.
+- Login/register attempt throttling and Socket.IO server integration.
+
+INSTALL:
+1. Stop backend server (Ctrl+C).
+2. Copy the included files/folders into your existing backend folder, replacing same-name files.
+3. Open terminal in backend folder and run: npm install
+4. Keep your existing .env file private. Do NOT replace it with .env.example.
+5. Ensure JWT_SECRET is a long random secret. Configure SMTP_* values in your local .env only if email is needed.
+6. Run: npm run dev
+
+IMPORTANT:
+- Backup restore is destructive: it replaces Books, Members, Borrow Records and Notifications. Only restore a trusted LibraFlow backup. Download and keep a backup before testing restore.
+- Backups contain member password hashes and other library data. Store them securely; never share them publicly.
+- Login/register throttling is in-memory and suitable for local/single-instance use; use a shared rate-limit store before multi-instance production deployment.
+- SMTP is optional. Email sending returns a configuration error until valid SMTP values are set.
+- The existing inventory route was left untouched; no new inventory functionality was added.
+- Existing frontend code still needs integration for the new screens and controls. These APIs alone do not create frontend UI.

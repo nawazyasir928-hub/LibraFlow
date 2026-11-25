@@ -1,0 +1,176 @@
+
+const express = require("express");
+const router = express.Router();
+
+const mongoose = require("mongoose");
+const Member = require("../models/Member");
+const BorrowRecord = require("../models/BorrowRecord");
+const { protect, adminOnly } = require("../middleware/authMiddleware");
+
+// Notify connected frontend clients
+const notifyUpdate = (req) => {
+  const io = req.app.get("io");
+  if (io) io.emit("library:update");
+};
+
+// GET logged-in member profile
+router.get("/me", protect, async (req, res) => {
+  try {
+    res.json(req.user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// UPDATE logged-in member profile
+router.put("/me", protect, async (req, res) => {
+  try {
+    const { name, phone, address } = req.body;
+
+    const member = await Member.findById(req.user._id);
+
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    if (name !== undefined) member.name = name;
+    if (phone !== undefined) member.phone = phone;
+    if (address !== undefined) member.address = address;
+
+    await member.save();
+    notifyUpdate(req);
+
+    res.json({
+      message: "Profile updated successfully",
+      user: member
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// GET ALL MEMBERS - Admin only
+router.get("/", protect, adminOnly, async (req, res) => {
+  try {
+    const members = await Member.find().sort({ createdAt: -1 });
+    res.json(members);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// APPROVE OR REJECT MEMBER - Admin only
+router.patch("/:id/approval", protect, adminOnly, async (req, res) => {
+  try {
+    const { approvalStatus } = req.body;
+
+    if (!["Approved", "Rejected"].includes(approvalStatus)) {
+      return res.status(400).json({
+        message: "Approval status must be Approved or Rejected."
+      });
+    }
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid member ID." });
+    }
+
+    const member = await Member.findById(req.params.id);
+
+    if (!member) {
+      return res.status(404).json({ message: "Member not found." });
+    }
+
+    member.approvalStatus = approvalStatus;
+    member.status = approvalStatus === "Approved" ? "Active" : "Inactive";
+
+    await member.save();
+    notifyUpdate(req);
+
+    res.json({
+      message: `Member ${approvalStatus.toLowerCase()} successfully.`,
+      member
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// GET SINGLE MEMBER - Admin only
+router.get("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid member ID." });
+    }
+
+    const member = await Member.findById(req.params.id);
+
+    if (!member) {
+      return res.status(404).json({ message: "Member not found." });
+    }
+
+    res.json(member);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// UPDATE MEMBER - Admin only
+router.put("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const { name, phone, address, status } = req.body;
+
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
+    if (address !== undefined) updates.address = address;
+    if (status !== undefined) updates.status = status;
+
+    const member = await Member.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    if (!member) {
+      return res.status(404).json({ message: "Member not found." });
+    }
+
+    notifyUpdate(req);
+    res.json(member);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// DELETE MEMBER - Admin only
+router.delete("/:id", protect, adminOnly, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid member ID." });
+    }
+
+    const hasHistory = await BorrowRecord.exists({
+      member: req.params.id
+    });
+
+    if (hasHistory) {
+      return res.status(400).json({
+        message: "Cannot delete a member with borrowing history."
+      });
+    }
+
+    const member = await Member.findByIdAndDelete(req.params.id);
+
+    if (!member) {
+      return res.status(404).json({ message: "Member not found." });
+    }
+
+    notifyUpdate(req);
+
+    res.json({ message: "Member deleted successfully." });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+module.exports = router;

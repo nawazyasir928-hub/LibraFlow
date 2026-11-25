@@ -1,0 +1,34 @@
+LIBRAFLOW PUBLIC WEBSITE + PUBLIC-DOMAIN CATALOGUE
+
+WHAT CHANGED
+- Public Home page is now the unauthenticated landing page.
+- Public visitors can browse/search/filter catalogue records and see book covers where the source image exists.
+- Public API responses do not disclose ebookUrl.
+- Authenticated members can use the protected /api/books/:id/read endpoint to receive the digital edition link.
+- Existing admin/member dashboards and library routes are retained.
+- Book records now support coverUrl, ebookUrl, ebookFormat, source and isPublicDomain.
+
+IMPORTANT: THE 1,000-BOOK IMPORT IS A SEPARATE STEP
+The seed script retrieves real public-domain book metadata from Project Gutenberg's Gutendex catalogue. Run it once after MongoDB is running and the backend dependencies are installed. It inserts up to 1,000 records and is safe to rerun (uses PG book ID as unique ISBN and $setOnInsert).
+
+BACKEND
+1. Keep your existing backend/.env file locally. It is intentionally not included in this update ZIP because it contains private settings/secrets.
+2. Open a terminal in backend folder.
+3. Run: npm install
+4. Start MongoDB.
+5. Run: npm run seed:books
+6. Start backend: npm run dev
+
+The default database remains mongodb://127.0.0.1:27017/LibraryManagementDB, matching the supplied project.
+
+FRONTEND
+1. Open a second terminal in frontend folder.
+2. Run: npm install
+3. Run: npm run dev
+4. Open the Vite URL shown in the terminal (normally http://localhost:5173).
+
+DIGITAL BOOKS
+Only books with a public-domain reading format are imported as e-books. Project Gutenberg provides HTML/text editions; this is not a claim that every title has a PDF. Some cover images may not exist at the source URL; the website displays a generated title/author placeholder in that case.
+
+SECURITY NOTE
+The public catalogue intentionally excludes ebookUrl. The read-link API requires a valid authenticated session. A user must sign in before the app reveals a reading URL. Public-domain source URLs themselves are not DRM-protected, so this is an application access gate, not copy protection.
